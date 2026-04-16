@@ -257,6 +257,8 @@
       margin-bottom: 20px;
       position: relative;
       transition: all 0.3s;
+      min-width: 300px;
+      min-height: 300px;
     }
 
     .chart-container.transparent {
@@ -304,6 +306,23 @@
     .chart-content {
       width: 100%;
       height: 300px;
+      min-height: 200px;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #00d4ff;
+      border-radius: 50%;
+      cursor: nwse-resize;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      z-index: 10;
+    }
+
+    .resize-handle.bottom-right {
+      bottom: 5px;
+      right: 5px;
     }
 
     .edit-page {
@@ -601,6 +620,76 @@
       left: 50%;
       transform: translate(-50%, -50%);
     }
+
+    .new-field-button {
+      background: linear-gradient(135deg, rgba(0, 200, 100, 0.3) 0%, rgba(0, 150, 50, 0.3) 100%);
+      color: #00ff88;
+      border: 1px solid rgba(0, 200, 100, 0.5);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 15px;
+      width: 100%;
+    }
+
+    .new-field-button:hover {
+      background: linear-gradient(135deg, rgba(0, 200, 100, 0.5) 0%, rgba(0, 150, 50, 0.5) 100%);
+      box-shadow: 0 0 15px rgba(0, 200, 100, 0.3);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 5px;
+      color: #00d4ff;
+      font-weight: bold;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      background: rgba(0, 20, 50, 0.8);
+      color: #00d4ff;
+      font-size: 14px;
+    }
+
+    .form-select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      background: rgba(0, 20, 50, 0.8);
+      color: #00d4ff;
+      font-size: 14px;
+    }
+
+    .calculated-field {
+      background: rgba(0, 200, 100, 0.1);
+      border: 1px solid rgba(0, 200, 100, 0.3);
+    }
+
+    .calculated-field:hover {
+      background: rgba(0, 200, 100, 0.2);
+      border-color: rgba(0, 200, 100, 0.5);
+    }
+
+    .chart-title-input {
+      width: 200px;
+      padding: 4px 8px;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      background: rgba(0, 20, 50, 0.8);
+      color: #00d4ff;
+      font-size: 16px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -747,49 +836,61 @@
     }
 
     // 图表组件
-    function Chart({ title, xAxisFields, yAxisFields, chartType, data, isTransparent, onEdit }) {
+    function Chart({ title, xAxisFields, yAxisFields, chartType, data, isTransparent, onEdit, onResize }) {
       const chartRef = React.useRef(null);
+      const containerRef = React.useRef(null);
+      const [dimensions, setDimensions] = React.useState({ width: 600, height: 400 });
 
       React.useEffect(() => {
-        if (chartRef.current && xAxisFields.length > 0 && yAxisFields.length > 0 && data.length > 0) {
+        // 从localStorage加载图表尺寸
+        const savedDimensions = localStorage.getItem('dashboard_chartDimensions');
+        if (savedDimensions) {
+          setDimensions(JSON.parse(savedDimensions));
+        }
+      }, []);
+
+      React.useEffect(() => {
+        if (chartRef.current) {
           const chart = echarts.init(chartRef.current);
 
           // 准备图表数据
           let xAxisData = [];
           let seriesData = [];
 
-          if (xAxisFields.length === 1) {
-            // 单个维度的情况
-            xAxisData = [...new Set(data.map(item => item[xAxisFields[0].name]))];
-            seriesData = yAxisFields.map(measure => ({
-              name: measure.name,
-              type: chartType === 'bar' ? 'bar' : 'line',
-              data: xAxisData.map(x => {
-                const item = data.find(d => d[xAxisFields[0].name] === x);
-                return item ? item[measure.name] : 0;
-              }),
-            }));
-          } else if (xAxisFields.length >= 2) {
-            // 多个维度的情况
-            const firstDim = xAxisFields[0].name;
-            const secondDim = xAxisFields[1].name;
+          if (xAxisFields.length > 0 && yAxisFields.length > 0 && data.length > 0) {
+            if (xAxisFields.length === 1) {
+              // 单个维度的情况
+              xAxisData = [...new Set(data.map(item => item[xAxisFields[0].name]))];
+              seriesData = yAxisFields.map(measure => ({
+                name: measure.name,
+                type: chartType === 'bar' ? 'bar' : 'line',
+                data: xAxisData.map(x => {
+                  const item = data.find(d => d[xAxisFields[0].name] === x);
+                  return item ? item[measure.name] : 0;
+                }),
+              }));
+            } else if (xAxisFields.length >= 2) {
+              // 多个维度的情况
+              const firstDim = xAxisFields[0].name;
+              const secondDim = xAxisFields[1].name;
 
-            xAxisData = [...new Set(data.map(item => item[firstDim]))];
-            const secondDimValues = [...new Set(data.map(item => item[secondDim]))];
+              xAxisData = [...new Set(data.map(item => item[firstDim]))];
+              const secondDimValues = [...new Set(data.map(item => item[secondDim]))];
 
-            // 为第二个维度的每个值创建一个系列
-            secondDimValues.forEach(dimValue => {
-              yAxisFields.forEach(measure => {
-                seriesData.push({
-                  name: `${dimValue} - ${measure.name}`,
-                  type: chartType === 'bar' ? 'bar' : 'line',
-                  data: xAxisData.map(x => {
-                    const item = data.find(d => d[firstDim] === x && d[secondDim] === dimValue);
-                    return item ? item[measure.name] : 0;
-                  }),
+              // 为第二个维度的每个值创建一个系列
+              secondDimValues.forEach(dimValue => {
+                yAxisFields.forEach(measure => {
+                  seriesData.push({
+                    name: `${dimValue} - ${measure.name}`,
+                    type: chartType === 'bar' ? 'bar' : 'line',
+                    data: xAxisData.map(x => {
+                      const item = data.find(d => d[firstDim] === x && d[secondDim] === dimValue);
+                      return item ? item[measure.name] : 0;
+                    }),
+                  });
                 });
               });
-            });
+            }
           }
 
           const option = {
@@ -879,10 +980,36 @@
             chart.dispose();
           };
         }
-      }, [title, xAxisFields, yAxisFields, chartType, data, isTransparent]);
+      }, [title, xAxisFields, yAxisFields, chartType, data, isTransparent, dimensions]);
+
+      const handleMouseDown = (e) => {
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = dimensions.width;
+        const startHeight = dimensions.height;
+
+        const handleMouseMove = (e) => {
+          const newWidth = Math.max(300, startWidth + (e.clientX - startX));
+          const newHeight = Math.max(200, startHeight + (e.clientY - startY));
+          setDimensions({ width: newWidth, height: newHeight });
+        };
+
+        const handleMouseUp = () => {
+          document.removeEventListener('mousemove', handleMouseMove);
+          document.removeEventListener('mouseup', handleMouseUp);
+          // 保存尺寸到localStorage
+          localStorage.setItem('dashboard_chartDimensions', JSON.stringify(dimensions));
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+      };
 
       return React.createElement('div', {
-        className: `chart-container ${isTransparent ? 'transparent' : ''}`
+        ref: containerRef,
+        className: `chart-container ${isTransparent ? 'transparent' : ''}`,
+        style: { width: `${dimensions.width}px`, height: `${dimensions.height}px` }
       }, [
         React.createElement('div', { className: 'chart-header' }, [
           React.createElement('div', { className: 'chart-title' }, title),
@@ -893,17 +1020,161 @@
             }, '编辑')
           ])
         ]),
-        React.createElement('div', { ref: chartRef, className: 'chart-content' })
+        React.createElement('div', { 
+          ref: chartRef, 
+          className: 'chart-content',
+          style: { height: `${dimensions.height - 60}px` }
+        }),
+        React.createElement('div', {
+          className: 'resize-handle bottom-right',
+          onMouseDown: handleMouseDown
+        })
+      ]);
+    }
+
+    // 新建字段模态框
+    function NewFieldModal({ isOpen, onClose, onAddField, fields, data }) {
+      if (!isOpen) return null;
+
+      const [fieldName, setFieldName] = React.useState('');
+      const [calculationType, setCalculationType] = React.useState('sum');
+      const [selectedField, setSelectedField] = React.useState('');
+
+      const handleAddField = () => {
+        if (!fieldName || !selectedField) return;
+
+        // 创建新字段
+        const newField = {
+          id: Date.now().toString(),
+          name: fieldName,
+          type: 'measure',
+          calculation: {
+            type: calculationType,
+            field: selectedField
+          }
+        };
+
+        // 计算新字段的值
+        const updatedData = data.map(item => {
+          const value = item[selectedField];
+          let calculatedValue = 0;
+
+          switch (calculationType) {
+            case 'sum':
+              calculatedValue = parseFloat(value) || 0;
+              break;
+            case 'average':
+              calculatedValue = parseFloat(value) || 0;
+              break;
+            case 'count':
+              calculatedValue = 1;
+              break;
+            case 'distinct_count':
+              calculatedValue = 1;
+              break;
+            case 'min':
+              calculatedValue = parseFloat(value) || 0;
+              break;
+            case 'max':
+              calculatedValue = parseFloat(value) || 0;
+              break;
+            default:
+              calculatedValue = parseFloat(value) || 0;
+          }
+
+          return {
+            ...item,
+            [fieldName]: calculatedValue
+          };
+        });
+
+        // 处理去重计数
+        if (calculationType === 'distinct_count') {
+          const distinctValues = [...new Set(data.map(item => item[selectedField]))];
+          const distinctCount = distinctValues.length;
+          updatedData.forEach(item => {
+            item[fieldName] = distinctCount;
+          });
+        }
+
+        // 处理平均值
+        if (calculationType === 'average') {
+          const values = data.map(item => parseFloat(item[selectedField]) || 0);
+          const sum = values.reduce((acc, val) => acc + val, 0);
+          const avg = values.length > 0 ? sum / values.length : 0;
+          updatedData.forEach(item => {
+            item[fieldName] = avg;
+          });
+        }
+
+        onAddField(newField, updatedData);
+        onClose();
+      };
+
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '新建计算字段'),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', { className: 'form-label' }, '字段名称'),
+            React.createElement('input', {
+              type: 'text',
+              className: 'form-input',
+              value: fieldName,
+              onChange: (e) => setFieldName(e.target.value),
+              placeholder: '输入新字段名称'
+            })
+          ]),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', { className: 'form-label' }, '计算类型'),
+            React.createElement('select', {
+              className: 'form-select',
+              value: calculationType,
+              onChange: (e) => setCalculationType(e.target.value)
+            }, [
+              React.createElement('option', { value: 'sum' }, '求和'),
+              React.createElement('option', { value: 'average' }, '平均值'),
+              React.createElement('option', { value: 'count' }, '计数'),
+              React.createElement('option', { value: 'distinct_count' }, '去重计数'),
+              React.createElement('option', { value: 'min' }, '最小值'),
+              React.createElement('option', { value: 'max' }, '最大值')
+            ])
+          ]),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', { className: 'form-label' }, '源字段'),
+            React.createElement('select', {
+              className: 'form-select',
+              value: selectedField,
+              onChange: (e) => setSelectedField(e.target.value)
+            }, [
+              React.createElement('option', { value: '' }, '选择字段'),
+              ...fields.map(field => (
+                React.createElement('option', { key: field.id, value: field.name }, field.name)
+              ))
+            ])
+          ]),
+          React.createElement('div', { className: 'modal-actions' }, [
+            React.createElement('button', {
+              className: 'button',
+              onClick: onClose
+            }, '取消'),
+            React.createElement('button', {
+              className: 'button button-primary',
+              onClick: handleAddField
+            }, '添加')
+          ])
+        ])
       ]);
     }
 
     // 编辑页面组件
-    function EditPage({ onSave, onCancel, initialXAxisFields, initialYAxisFields, initialChartType, initialIsTransparent, fields, data }) {
+    function EditPage({ onSave, onCancel, initialXAxisFields, initialYAxisFields, initialChartType, initialIsTransparent, fields, data, onAddField, initialTitle, onTitleChange }) {
       const [xAxisFields, setXAxisFields] = React.useState(initialXAxisFields || []);
       const [yAxisFields, setYAxisFields] = React.useState(initialYAxisFields || []);
       const [chartType, setChartType] = React.useState(initialChartType || 'bar');
       const [isTransparent, setIsTransparent] = React.useState(initialIsTransparent || false);
       const [draggingField, setDraggingField] = React.useState(null);
+      const [showNewFieldModal, setShowNewFieldModal] = React.useState(false);
+      const [title, setTitle] = React.useState(initialTitle || '数据可视化');
 
       const handleFieldDragStart = (field) => {
         setDraggingField(field);
@@ -935,25 +1206,55 @@
       };
 
       const handleSave = () => {
-        onSave(xAxisFields, yAxisFields, chartType, isTransparent);
+        onSave(xAxisFields, yAxisFields, chartType, isTransparent, title);
+        onTitleChange(title);
+      };
+
+      const handleAddField = (newField, updatedData) => {
+        onAddField(newField, updatedData);
       };
 
       return React.createElement('div', { className: 'edit-page' }, [
         React.createElement('div', { className: 'edit-sidebar' }, [
           React.createElement('h3', { style: { color: '#00d4ff', marginBottom: '15px' } }, '数据源字段'),
+          React.createElement('button', {
+            className: 'new-field-button',
+            onClick: () => setShowNewFieldModal(true)
+          }, '新建字段'),
           React.createElement('div', { className: 'field-list' },
             fields.map(field => (
               React.createElement('div', {
                 key: field.id,
-                className: 'field-item',
+                className: `field-item ${field.calculation ? 'calculated-field' : ''}`,
                 draggable: true,
                 onDragStart: () => handleFieldDragStart(field)
-              }, `${field.name} (${field.type === 'dimension' ? '维度' : '度量'})`)
+              }, [
+                field.name,
+                React.createElement('span', { style: { float: 'right', fontSize: '12px', color: '#888' } }, 
+                  field.calculation ? '计算字段' : (field.type === 'dimension' ? '维度' : '度量')
+                )
+              ])
             ))
-          )
+          ),
+          React.createElement(NewFieldModal, {
+            isOpen: showNewFieldModal,
+            onClose: () => setShowNewFieldModal(false),
+            onAddField: handleAddField,
+            fields: fields,
+            data: data
+          })
         ]),
         React.createElement('div', { className: 'edit-main' }, [
           React.createElement('h3', { style: { color: '#00d4ff', marginBottom: '15px' } }, '编辑图表'),
+          React.createElement('div', { style: { marginBottom: '20px' } }, [
+            React.createElement('label', { className: 'form-label' }, '图表标题'),
+            React.createElement('input', {
+              type: 'text',
+              className: 'chart-title-input',
+              value: title,
+              onChange: (e) => setTitle(e.target.value)
+            })
+          ]),
           React.createElement('div', { className: 'edit-content' }, [
             React.createElement('div', { className: 'axis-configs' }, [
               React.createElement('div', { className: 'chart-type-selector' }, [
@@ -1050,23 +1351,42 @@
       ]);
     }
 
-    // 数据源上传组件
-    function DataUpload({ onDataLoaded }) {
+    // 数据源上传模态框
+    function DataUploadModal({ isOpen, onClose, onDataLoaded }) {
+      if (!isOpen) return null;
+
       const [file, setFile] = React.useState(null);
       const [fields, setFields] = React.useState([]);
       const [data, setData] = React.useState([]);
+      const [loading, setLoading] = React.useState(false);
+      const [progress, setProgress] = React.useState(0);
 
       const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile) {
           setFile(selectedFile);
+          setLoading(true);
+          setProgress(0);
           parseFile(selectedFile);
         }
       };
 
       const parseFile = (file) => {
         const reader = new FileReader();
+        
+        // 模拟进度更新
+        let progressInterval = setInterval(() => {
+          setProgress(prev => {
+            if (prev < 90) return prev + 10;
+            clearInterval(progressInterval);
+            return 90;
+          });
+        }, 200);
+
         reader.onload = (e) => {
+          clearInterval(progressInterval);
+          setProgress(100);
+          
           try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
@@ -1088,63 +1408,129 @@
               });
               setFields(detectedFields);
               setData(jsonData);
+              console.log('File parsed successfully:', { fields: detectedFields, data: jsonData });
+            } else {
+              console.log('No data found in file');
             }
           } catch (error) {
             console.error('Error parsing file:', error);
+            alert('文件解析失败，请检查文件格式是否正确');
+          } finally {
+            setLoading(false);
           }
+        };
+        reader.onerror = (error) => {
+          clearInterval(progressInterval);
+          setLoading(false);
+          console.error('Error reading file:', error);
+          alert('文件读取失败，请重试');
         };
         reader.readAsArrayBuffer(file);
       };
 
       const handleNext = () => {
-        if (fields.length > 0 && data.length > 0) {
-          onDataLoaded(fields, data);
+        console.log('Upload button clicked:', { fieldsLength: fields.length, dataLength: data.length, fileName: file?.name });
+        if (fields.length > 0 && data.length > 0 && file) {
+          onDataLoaded(fields, data, file.name);
+          onClose();
+        } else {
+          console.log('Upload failed: insufficient data', { fieldsLength: fields.length, dataLength: data.length, file: file });
+          alert('请先选择文件并确保文件包含数据');
         }
       };
 
-      return React.createElement('div', { className: 'upload-section' }, [
-        React.createElement('h2', { className: 'upload-title' }, '上传数据源'),
-        React.createElement('p', { className: 'upload-description' }, '请上传Excel或CSV格式的文件，系统将自动识别字段并判断维度/度量类型'),
-        React.createElement('div', { className: 'file-upload' }, [
-          React.createElement('input', {
-            type: 'file',
-            id: 'file-input',
-            className: 'file-input',
-            accept: '.xlsx,.xls,.csv',
-            onChange: handleFileChange
-          }),
-          React.createElement('label', { htmlFor: 'file-input', className: 'upload-button' }, '选择文件'),
-          file && React.createElement('div', { className: 'file-info' }, [
-            React.createElement('div', { className: 'file-name' }, `文件名: ${file.name}`),
-            React.createElement('div', null, `大小: ${(file.size / 1024).toFixed(2)} KB`)
-          ])
-        ]),
-        fields.length > 0 && React.createElement('div', { className: 'fields-preview' }, [
-          React.createElement('h3', { className: 'fields-title' }, '识别的字段'),
-          React.createElement('table', { className: 'field-table' }, [
-            React.createElement('thead', null, [
-              React.createElement('tr', null, [
-                React.createElement('th', null, '字段名称'),
-                React.createElement('th', null, '类型')
-              ])
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '上传数据集'),
+          React.createElement('p', { style: { color: '#8b9dc3', marginBottom: '20px' } }, '请上传Excel或CSV格式的文件，系统将自动识别字段并判断维度/度量类型'),
+          React.createElement('div', { className: 'file-upload' }, [
+            React.createElement('input', {
+              type: 'file',
+              id: 'file-input',
+              className: 'file-input',
+              accept: '.xlsx,.xls,.csv',
+              onChange: handleFileChange,
+              disabled: loading
+            }),
+            React.createElement('label', { 
+              htmlFor: 'file-input', 
+              className: 'upload-button',
+              style: { cursor: loading ? 'not-allowed' : 'pointer' }
+            }, loading ? '处理中...' : '选择文件')
+          ]),
+          React.createElement('div', null, [
+            file ? React.createElement('div', { className: 'file-info' }, [
+              React.createElement('div', { className: 'file-name' }, '文件名: ' + file.name),
+              React.createElement('div', null, '大小: ' + (file.size / 1024).toFixed(2) + ' KB')
+            ]) : null
+          ]),
+          loading && React.createElement('div', { style: { marginTop: '20px' } }, [
+            React.createElement('div', { style: { marginBottom: '10px', color: '#00d4ff' } }, '解析中...'),
+            React.createElement('div', { 
+              style: {
+                width: '100%',
+                height: '8px',
+                background: 'rgba(0, 50, 100, 0.3)',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }
+            }, [
+              React.createElement('div', {
+                style: {
+                  width: progress + '%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #00d4ff, #0072ff)',
+                  borderRadius: '4px',
+                  transition: 'width 0.3s ease'
+                }
+              })
             ]),
-            React.createElement('tbody', null,
-              fields.map(field => (
-                React.createElement('tr', { key: field.id }, [
-                  React.createElement('td', null, field.name),
-                  React.createElement('td', null, [
-                    React.createElement('span', {
-                      className: `type-tag ${field.type === 'dimension' ? 'type-dimension' : 'type-measure'}`
-                    }, field.type === 'dimension' ? '维度' : '度量')
+            React.createElement('div', { 
+              style: {
+                textAlign: 'right',
+                fontSize: '12px',
+                color: '#8b9dc3',
+                marginTop: '5px'
+              }
+            }, progress + '%')
+          ]),
+          React.createElement('div', null, [
+            fields.length > 0 ? React.createElement('div', { className: 'fields-preview' }, [
+              React.createElement('h3', { className: 'fields-title' }, '识别的字段'),
+              React.createElement('div', { style: { maxHeight: '300px', overflowY: 'auto', marginBottom: '20px' } }, [
+                React.createElement('table', { className: 'field-table' }, [
+                  React.createElement('thead', null, [
+                    React.createElement('tr', null, [
+                      React.createElement('th', null, '字段名称'),
+                      React.createElement('th', null, '类型')
+                    ])
+                  ]),
+                  React.createElement('tbody', null, [
+                    fields.map((field, index) => (
+                      React.createElement('tr', { key: index }, [
+                        React.createElement('td', null, field.name),
+                        React.createElement('td', null, [
+                          React.createElement('span', {
+                            className: 'type-tag ' + (field.type === 'dimension' ? 'type-dimension' : 'type-measure')
+                          }, field.type === 'dimension' ? '维度' : '度量')
+                        ])
+                      ])
+                    ))
                   ])
                 ])
-              ))
-            )
+              ]),
+              React.createElement('button', {
+                className: 'next-button',
+                onClick: handleNext
+              }, '上传')
+            ]) : null
           ]),
-          React.createElement('button', {
-            className: 'next-button',
-            onClick: handleNext
-          }, '下一步')
+          React.createElement('div', { className: 'modal-actions' }, [
+            React.createElement('button', {
+              className: 'button',
+              onClick: onClose
+            }, '取消')
+          ])
         ])
       ]);
     }
@@ -1165,28 +1551,95 @@
         }
       };
 
-      return React.createElement('div', { className: 'modal' }, [
-        React.createElement('div', { className: 'modal-content' }, [
-          React.createElement('h3', { className: 'modal-title' }, '上传背景图片'),
-          React.createElement('div', { className: 'file-upload' }, [
+      return React.createElement('div', { key: 'modal', className: 'modal' }, [
+        React.createElement('div', { key: 'modal-content', className: 'modal-content' }, [
+          React.createElement('h3', { key: 'modal-title', className: 'modal-title' }, '上传背景图片'),
+          React.createElement('div', { key: 'file-upload', className: 'file-upload' }, [
             React.createElement('input', {
+              key: 'file-input',
               type: 'file',
               id: 'bg-file-input',
               className: 'file-input',
               accept: 'image/*',
               onChange: handleFileChange
             }),
-            React.createElement('label', { htmlFor: 'bg-file-input', className: 'upload-button' }, '选择图片')
+            React.createElement('label', { 
+              key: 'upload-label',
+              htmlFor: 'bg-file-input', 
+              className: 'upload-button' 
+            }, '选择图片')
+          ]),
+          React.createElement('div', { key: 'modal-actions', className: 'modal-actions' }, [
+            React.createElement('button', {
+              key: 'cancel-button',
+              className: 'button',
+              onClick: onClose
+            }, '取消'),
+            React.createElement('button', {
+              key: 'complete-button',
+              className: 'button button-primary',
+              onClick: onClose
+            }, '完成')
+          ])
+        ])
+      ]);
+    }
+
+    // 数据集选择模态框
+    function DatasetModal({ isOpen, onClose, datasets, onSelectDataset }) {
+      if (!isOpen) return null;
+
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '选择数据集'),
+          React.createElement('div', { style: { marginBottom: '20px' } }, [
+            React.createElement('p', { style: { color: '#8b9dc3', marginBottom: '15px' } }, '请选择要使用的数据集：'),
+            datasets.length > 0 ? (
+              datasets.map((dataset, index) => React.createElement('div', {
+                key: dataset.id,
+                style: {
+                  padding: '12px',
+                  background: 'rgba(0, 50, 100, 0.3)',
+                  border: '1px solid rgba(0, 150, 255, 0.3)',
+                  borderRadius: '4px',
+                  marginBottom: '10px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
+                },
+                onClick: () => onSelectDataset(dataset),
+                onMouseEnter: (e) => {
+                  e.currentTarget.style.background = 'rgba(0, 100, 200, 0.4)';
+                  e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.5)';
+                },
+                onMouseLeave: (e) => {
+                  e.currentTarget.style.background = 'rgba(0, 50, 100, 0.3)';
+                  e.currentTarget.style.borderColor = 'rgba(0, 150, 255, 0.3)';
+                }
+              }, [
+                React.createElement('div', { style: { fontWeight: 'bold', color: '#00d4ff' } }, dataset.name),
+                React.createElement('div', { style: { fontSize: '12px', color: '#8b9dc3', marginTop: '5px' } }, `${dataset.fields.length} 个字段 · ${dataset.rowCount} 条记录 · ${new Date(dataset.uploadTime).toLocaleString()}`)
+              ]))
+            ) : (
+              React.createElement('div', {
+                style: {
+                  padding: '20px',
+                  background: 'rgba(0, 30, 60, 0.3)',
+                  border: '1px solid rgba(0, 150, 255, 0.2)',
+                  borderRadius: '4px',
+                  textAlign: 'center',
+                  color: '#8b9dc3'
+                }
+              }, [
+                React.createElement('p', null, '还没有上传数据集'),
+                React.createElement('p', { style: { marginTop: '10px' } }, '请先点击"新增数据集"按钮上传数据')
+              ])
+            )
           ]),
           React.createElement('div', { className: 'modal-actions' }, [
             React.createElement('button', {
               className: 'button',
               onClick: onClose
-            }, '取消'),
-            React.createElement('button', {
-              className: 'button button-primary',
-              onClick: onClose
-            }, '完成')
+            }, '取消')
           ])
         ])
       ]);
@@ -1219,49 +1672,254 @@
         const saved = localStorage.getItem('dashboard_backgroundImage');
         return saved || null;
       });
+      const [chartTitle, setChartTitle] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_chartTitle');
+        return saved || '数据可视化';
+      });
+      const [showDatasetModal, setShowDatasetModal] = React.useState(false);
+      const [charts, setCharts] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_charts');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [editingChart, setEditingChart] = React.useState(null);
+      const [datasets, setDatasets] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_datasets');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [showAddDatasetModal, setShowAddDatasetModal] = React.useState(false);
+      const [currentDataset, setCurrentDataset] = React.useState(null);
 
       // 页面加载时从localStorage读取数据
       React.useEffect(() => {
         const savedFields = localStorage.getItem('dashboard_fields');
         const savedData = localStorage.getItem('dashboard_data');
+        const savedDatasets = localStorage.getItem('dashboard_datasets');
+        
+        console.log('Initial savedDatasets:', savedDatasets);
+        
+        if (savedDatasets) {
+          try {
+            const parsedDatasets = JSON.parse(savedDatasets);
+            console.log('Parsed datasets:', parsedDatasets);
+            console.log('Parsed datasets length:', parsedDatasets.length);
+            setDatasets(parsedDatasets);
+            console.log('Loaded datasets from localStorage:', parsedDatasets);
+          } catch (error) {
+            console.error('Error parsing datasets:', error);
+            setDatasets([]);
+          }
+        } else {
+          console.log('No saved datasets found in localStorage');
+        }
+        
         if (savedFields && savedData) {
-          setFields(JSON.parse(savedFields));
-          setData(JSON.parse(savedData));
-          setActiveTab('dashboard');
+          try {
+            const parsedFields = JSON.parse(savedFields);
+            const parsedData = JSON.parse(savedData);
+            setFields(parsedFields);
+            setData(parsedData);
+            
+            // 检查是否需要将现有数据添加到数据集列表
+            if (parsedFields.length > 0 && parsedData.length > 0) {
+              const savedDatasets = localStorage.getItem('dashboard_datasets');
+              let datasetsArray = [];
+              if (savedDatasets) {
+                try {
+                  datasetsArray = JSON.parse(savedDatasets);
+                } catch (error) {
+                  console.error('Error parsing datasets:', error);
+                }
+              }
+              
+              console.log('Current datasetsArray:', datasetsArray);
+              console.log('Current datasetsArray length:', datasetsArray.length);
+              
+              // 检查是否已经存在相同的数据集（通过比较字段名称和数据结构）
+              const existingDataset = datasetsArray.find(dataset => {
+                // 检查字段数量是否相同
+                if (dataset.fields.length !== parsedFields.length) return false;
+                // 检查字段名称是否相同
+                const datasetFieldNames = dataset.fields.map(f => f.name).sort();
+                const parsedFieldNames = parsedFields.map(f => f.name).sort();
+                for (let i = 0; i < datasetFieldNames.length; i++) {
+                  if (datasetFieldNames[i] !== parsedFieldNames[i]) return false;
+                }
+                // 检查数据行数是否相同
+                return dataset.data.length === parsedData.length;
+              });
+              
+              console.log('Existing dataset found:', existingDataset);
+              
+              if (!existingDataset) {
+                // 添加现有数据到数据集列表
+                const newDataset = {
+                  id: Date.now().toString(),
+                  name: '现有数据集',
+                  fields: parsedFields,
+                  data: parsedData,
+                  rowCount: parsedData.length,
+                  uploadTime: new Date().toISOString()
+                };
+                const updatedDatasets = [...datasetsArray, newDataset];
+                setDatasets(updatedDatasets);
+                localStorage.setItem('dashboard_datasets', JSON.stringify(updatedDatasets));
+                console.log('Added existing data to datasets:', newDataset);
+              } else {
+                console.log('Existing dataset already in list:', existingDataset);
+              }
+            }
+            
+            setActiveTab('dashboard');
+          } catch (error) {
+            console.error('Error parsing fields or data:', error);
+          }
         }
       }, []);
+      
+      // 监听datasets状态变化
+      React.useEffect(() => {
+        console.log('Datasets state changed:', datasets);
+        console.log('Datasets length:', datasets.length);
+      }, [datasets]);
 
-      const handleDataLoaded = (loadedFields, loadedData) => {
-        setFields(loadedFields);
-        setData(loadedData);
-        localStorage.setItem('dashboard_fields', JSON.stringify(loadedFields));
-        localStorage.setItem('dashboard_data', JSON.stringify(loadedData));
-        setActiveTab('dashboard');
+      const handleDataLoaded = (loadedFields, loadedData, fileName) => {
+        console.log('Data loaded:', { fieldsLength: loadedFields.length, dataLength: loadedData.length, fileName: fileName });
+        
+        // 确保数据有效
+        if (!loadedFields || !loadedData || loadedFields.length === 0 || loadedData.length === 0) {
+          console.error('Invalid data received:', { fields: loadedFields, data: loadedData });
+          alert('数据解析失败，请检查文件格式');
+          return;
+        }
+        
+        const newDataset = {
+          id: Date.now().toString(),
+          name: fileName || `数据集 ${datasets.length + 1}`,
+          fields: loadedFields,
+          data: loadedData,
+          rowCount: loadedData.length,
+          uploadTime: new Date().toISOString()
+        };
+        
+        console.log('Creating new dataset:', newDataset);
+        
+        // 创建更新后的数据集数组
+        const updatedDatasets = [...datasets, newDataset];
+        console.log('Updated datasets array:', updatedDatasets);
+        
+        // 更新状态
+        setDatasets(updatedDatasets);
+        console.log('Datasets state set');
+        
+        // 保存到localStorage
+        try {
+          localStorage.setItem('dashboard_datasets', JSON.stringify(updatedDatasets));
+          console.log('Datasets saved to localStorage');
+          
+          // 验证保存是否成功
+          const savedDatasets = localStorage.getItem('dashboard_datasets');
+          if (savedDatasets) {
+            const parsedSavedDatasets = JSON.parse(savedDatasets);
+            console.log('Verified datasets in localStorage:', parsedSavedDatasets);
+          } else {
+            console.error('Failed to save datasets to localStorage');
+          }
+        } catch (error) {
+          console.error('Error saving datasets to localStorage:', error);
+          alert('保存数据集失败，请检查浏览器存储权限');
+        }
+        
+        // 同时保存为当前使用的数据集
+        try {
+          localStorage.setItem('dashboard_fields', JSON.stringify(loadedFields));
+          localStorage.setItem('dashboard_data', JSON.stringify(loadedData));
+          console.log('Current dataset saved to localStorage');
+        } catch (error) {
+          console.error('Error saving current dataset to localStorage:', error);
+        }
+        
+        // 切换到上传标签页
+        setActiveTab('upload');
+        console.log('Switched to upload tab');
       };
 
-      const handleEdit = () => {
+      const handleEdit = (chart = null) => {
+        setEditingChart(chart);
         setShowEdit(true);
       };
 
-      const handleSave = (xAxis, yAxis, type, transparent) => {
-        setXAxisFields(xAxis);
-        setYAxisFields(yAxis);
-        setChartType(type);
-        setIsTransparent(transparent);
-        localStorage.setItem('dashboard_xAxisFields', JSON.stringify(xAxis));
-        localStorage.setItem('dashboard_yAxisFields', JSON.stringify(yAxis));
-        localStorage.setItem('dashboard_chartType', type);
-        localStorage.setItem('dashboard_isTransparent', JSON.stringify(transparent));
+      const handleSave = (xAxis, yAxis, type, transparent, title) => {
+        if (editingChart) {
+          // 更新现有图表
+          const updatedCharts = charts.map(chart => {
+            if (chart.id === editingChart.id) {
+              return {
+                ...chart,
+                xAxisFields: xAxis,
+                yAxisFields: yAxis,
+                chartType: type,
+                isTransparent: transparent,
+                chartTitle: title
+              };
+            }
+            return chart;
+          });
+          setCharts(updatedCharts);
+          localStorage.setItem('dashboard_charts', JSON.stringify(updatedCharts));
+        } else {
+          // 创建新图表
+          const newChart = {
+            id: Date.now().toString(),
+            title: title,
+            xAxisFields: xAxis,
+            yAxisFields: yAxis,
+            chartType: type,
+            isTransparent: transparent,
+            chartTitle: title
+          };
+          const updatedCharts = [...charts, newChart];
+          setCharts(updatedCharts);
+          localStorage.setItem('dashboard_charts', JSON.stringify(updatedCharts));
+        }
         setShowEdit(false);
+        setEditingChart(null);
       };
 
       const handleCancel = () => {
         setShowEdit(false);
+        setEditingChart(null);
       };
 
       const handleBackgroundChange = (imageUrl) => {
         setBackgroundImage(imageUrl);
         localStorage.setItem('dashboard_backgroundImage', imageUrl);
+      };
+
+      const handleAddField = (newField, updatedData) => {
+        const updatedFields = [...fields, newField];
+        setFields(updatedFields);
+        setData(updatedData);
+        localStorage.setItem('dashboard_fields', JSON.stringify(updatedFields));
+        localStorage.setItem('dashboard_data', JSON.stringify(updatedData));
+      };
+
+      const handleTitleChange = (title) => {
+        setChartTitle(title);
+        localStorage.setItem('dashboard_chartTitle', title);
+      };
+
+      const handleResize = (newWidth, newHeight) => {
+        // 可以在这里处理图表大小调整的逻辑
+      };
+
+      const handleSelectDataset = (dataset) => {
+        // 选择数据集后进入编辑页面
+        setCurrentDataset(dataset);
+        setFields(dataset.fields);
+        setData(dataset.data);
+        setEditingChart(null);
+        setShowDatasetModal(false);
+        setShowEdit(true);
       };
 
       return React.createElement('div', { className: 'dashboard-container' }, [
@@ -1287,10 +1945,17 @@
           '数据可视化仪表板',
           React.createElement('div', { className: 'header-actions' }, [
             React.createElement('button', {
+              key: 'new-chart',
+              className: 'header-button',
+              onClick: () => setShowDatasetModal(true)
+            }, '新增图表'),
+            React.createElement('button', {
+              key: 'change-bg',
               className: 'header-button',
               onClick: () => setShowBackgroundModal(true)
             }, '更换背景'),
             React.createElement('button', {
+              key: 'upload-data',
               className: 'header-button',
               onClick: () => setActiveTab('upload')
             }, '上传数据')
@@ -1298,10 +1963,12 @@
         ]),
         React.createElement('div', { className: 'nav-tabs' }, [
           React.createElement('div', {
+            key: 'upload-tab',
             className: `nav-tab ${activeTab === 'upload' ? 'active' : ''}`,
             onClick: () => setActiveTab('upload')
-          }, '数据源上传'),
+          }, '数据集'),
           React.createElement('div', {
+            key: 'dashboard-tab',
             className: `nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`,
             onClick: () => setActiveTab('dashboard'),
             style: { pointerEvents: fields.length === 0 ? 'none' : 'auto', opacity: fields.length === 0 ? 0.6 : 1 }
@@ -1309,34 +1976,121 @@
         ]),
         React.createElement('div', { className: 'dashboard-content' },
           activeTab === 'upload' ? (
-            React.createElement(DataUpload, { onDataLoaded: handleDataLoaded })
+            React.createElement('div', { key: 'datasets-section', style: { padding: '20px' } }, [
+              React.createElement('div', { style: { display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' } }, [
+                React.createElement('button', {
+                  className: 'next-button',
+                  onClick: () => setShowAddDatasetModal(true)
+                }, '新增数据集')
+              ]),
+              React.createElement('div', { style: { marginBottom: '20px', color: '#00d4ff' } }, '数据集数量: ' + datasets.length),
+              React.createElement('div', { style: { width: '100%' } }, [
+                React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse' } }, [
+                  React.createElement('thead', null, 
+                    React.createElement('tr', { style: { backgroundColor: 'rgba(0, 100, 200, 0.3)' } }, [
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '类型'),
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '名称'),
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '描述'),
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '行列'),
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '最近数据更新时间'),
+                      React.createElement('th', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', textAlign: 'left', color: '#00d4ff' } }, '操作')
+                    ])
+                  ),
+                  React.createElement('tbody', null, 
+                    datasets.length > 0 ? (
+                      datasets.map(dataset => 
+                        React.createElement('tr', { key: dataset.id, style: { borderBottom: '1px solid rgba(0, 150, 255, 0.2)' } }, [
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, 
+                            React.createElement('span', { style: { color: '#00cc66' } }, 'Excel')
+                          ),
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, dataset.name),
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, 'Excel数据集'),
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, dataset.rowCount + '/' + dataset.fields.length),
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, new Date(dataset.uploadTime).toLocaleString()),
+                          React.createElement('td', { style: { padding: '12px', border: '1px solid rgba(0, 150, 255, 0.3)', color: '#8b9dc3' } }, [
+                            React.createElement('button', {
+                              key: 'delete-' + dataset.id,
+                              className: 'button',
+                              style: { color: '#ff4d4f' },
+                              onClick: () => {
+                                const updatedDatasets = datasets.filter(d => d.id !== dataset.id);
+                                setDatasets(updatedDatasets);
+                                localStorage.setItem('dashboard_datasets', JSON.stringify(updatedDatasets));
+                              }
+                            }, '删除')
+                          ])
+                        ])
+                      )
+                    ) : (
+                      React.createElement('tr', null, 
+                        React.createElement('td', { colSpan: 6, style: { textAlign: 'center', padding: '40px', color: '#8b9dc3', border: '1px solid rgba(0, 150, 255, 0.3)' } }, [
+                          React.createElement('p', null, '还没有上传数据集'),
+                          React.createElement('p', { style: { marginTop: '10px' } }, '点击"新增数据集"按钮上传数据')
+                        ])
+                      )
+                    )
+                  )
+                ])
+              ])
+            ])
           ) : showEdit ? (
             React.createElement(EditPage, {
+              key: 'edit-page',
               onSave: handleSave,
               onCancel: handleCancel,
-              initialXAxisFields: xAxisFields,
-              initialYAxisFields: yAxisFields,
-              initialChartType: chartType,
-              initialIsTransparent: isTransparent,
+              initialXAxisFields: editingChart ? editingChart.xAxisFields : [],
+              initialYAxisFields: editingChart ? editingChart.yAxisFields : [],
+              initialChartType: editingChart ? editingChart.chartType : 'bar',
+              initialIsTransparent: editingChart ? editingChart.isTransparent : true,
               fields: fields,
-              data: data
+              data: data,
+              onAddField: handleAddField,
+              initialTitle: editingChart ? editingChart.chartTitle : '数据可视化',
+              onTitleChange: handleTitleChange
             })
           ) : (
-            React.createElement(Chart, {
-              title: '数据可视化',
-              xAxisFields: xAxisFields,
-              yAxisFields: yAxisFields,
-              chartType: chartType,
-              data: data,
-              isTransparent: isTransparent,
-              onEdit: handleEdit
-            })
+            React.createElement('div', { key: 'charts-container', style: { display: 'flex', flexWrap: 'wrap', gap: '20px' } }, [
+              ...charts.map(chart => React.createElement(Chart, {
+                key: chart.id,
+                title: chart.chartTitle,
+                xAxisFields: chart.xAxisFields,
+                yAxisFields: chart.yAxisFields,
+                chartType: chart.chartType,
+                data: data,
+                isTransparent: chart.isTransparent,
+                onEdit: () => handleEdit(chart),
+                onResize: handleResize
+              })),
+              charts.length === 0 && React.createElement('div', {
+                key: 'empty-state',
+                style: {
+                  width: '100%',
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#8b9dc3'
+                }
+              }, [
+                React.createElement('p', { key: 'empty-text-1' }, '仪表板中还没有图表'),
+                React.createElement('p', { key: 'empty-text-2' }, '点击右上角的"新增图表"按钮添加图表')
+              ])
+            ])
           )
         ),
         React.createElement(BackgroundUploadModal, {
           isOpen: showBackgroundModal,
           onClose: () => setShowBackgroundModal(false),
           onBackgroundChange: handleBackgroundChange
+        }),
+        React.createElement(DatasetModal, {
+          isOpen: showDatasetModal,
+          onClose: () => setShowDatasetModal(false),
+          datasets: datasets,
+          onSelectDataset: handleSelectDataset
+        }),
+        React.createElement(DataUploadModal, {
+          isOpen: showAddDatasetModal,
+          onClose: () => setShowAddDatasetModal(false),
+          onDataLoaded: handleDataLoaded
         })
       ]);
     }
