@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据可视化仪表板 - 自定义背景</title>
+  <!-- 引入React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- 引入ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <!-- 引入xlsx库用于解析Excel文件 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- 样式 -->
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #0a0e27;
+    }
+
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .dashboard-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0a0e27 0%, #1a1f4e 50%, #0d1229 100%);
+    }
+
+    .dashboard-container.has-background {
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .dashboard-header {
+      height: 60px;
+      background: linear-gradient(90deg, rgba(0, 20, 60, 0.8) 0%, rgba(0, 30, 80, 0.8) 100%);
+      border-bottom: 1px solid rgba(0, 150, 255, 0.3);
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 10;
+      box-shadow: 0 2px 20px rgba(0, 150, 255, 0.2);
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+    }
+
+    .header-button {
+      background: linear-gradient(135deg, rgba(0, 150, 255, 0.3) 0%, rgba(0, 100, 200, 0.3) 100%);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 150, 255, 0.5);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .header-button:hover {
+      background: linear-gradient(135deg, rgba(0, 150, 255, 0.5) 0%, rgba(0, 100, 200, 0.5) 100%);
+      box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+    }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(0, 20, 50, 0.6);
+      border-bottom: 1px solid rgba(0, 150, 255, 0.2);
+      z-index: 10;
+    }
+
+    .nav-tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: #8b9dc3;
+      transition: all 0.3s;
+    }
+
+    .nav-tab.active {
+      border-bottom: 2px solid #00d4ff;
+      color: #00d4ff;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+    }
+
+    .nav-tab:hover:not(.active) {
+      color: #00d4ff;
+    }
+
+    .dashboard-content {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .upload-section {
+      background: rgba(10, 20, 50, 0.9);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
+      padding: 40px;
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .upload-title {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #00d4ff;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .upload-description {
+      color: #8b9dc3;
+      margin-bottom: 30px;
+    }
+
+    .file-upload {
+      border: 2px dashed rgba(0, 150, 255, 0.5);
+      border-radius: 8px;
+      padding: 40px;
+      margin-bottom: 30px;
+      transition: all 0.3s;
+      background: rgba(0, 50, 100, 0.2);
+    }
+
+    .file-upload:hover {
+      border-color: #00d4ff;
+      background: rgba(0, 100, 200, 0.2);
+      box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .upload-button {
+      background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .upload-button:hover {
+      background: linear-gradient(135deg, #0088ff 0%, #0066cc 100%);
+      box-shadow: 0 0 20px rgba(0, 136, 255, 0.4);
+    }
+
+    .file-info {
+      margin-top: 20px;
+      text-align: left;
+      color: #00d4ff;
+    }
+
+    .file-name {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .fields-preview {
+      margin-top: 30px;
+      text-align: left;
+    }
+
+    .fields-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #00d4ff;
+    }
+
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .field-table th,
+    .field-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(0, 150, 255, 0.2);
+      text-align: left;
+      color: #8b9dc3;
+    }
+
+    .field-table th {
+      background: rgba(0, 50, 100, 0.3);
+      color: #00d4ff;
+      font-weight: bold;
+    }
+
+    .type-tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .type-dimension {
+      background: rgba(0, 150, 255, 0.2);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 150, 255, 0.3);
+    }
+
+    .type-measure {
+      background: rgba(0, 200, 100, 0.2);
+      color: #00ff88;
+      border: 1px solid rgba(0, 200, 100, 0.3);
+    }
+
+    .next-button {
+      background: linear-gradient(135deg, #00cc66 0%, #009944 100%);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 30px;
+    }
+
+    .next-button:hover {
+      background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+    }
+
+    .chart-container {
+      background: rgba(10, 20, 50, 0.85);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 150, 255, 0.15);
+      padding: 20px;
+      margin-bottom: 20px;
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .chart-container.transparent {
+      background-color: transparent;
+      box-shadow: none;
+      border: 1px solid rgba(0, 150, 255, 0.2);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .chart-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #00d4ff;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .chart-actions {
+      position: relative;
+      display: flex;
+      gap: 5px;
+    }
+
+    .edit-button {
+      background: rgba(0, 100, 200, 0.3);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s;
+    }
+
+    .edit-button:hover {
+      background: rgba(0, 100, 200, 0.5);
+      box-shadow: 0 0 10px rgba(0, 150, 255, 0.3);
+    }
+
+    .chart-content {
+      width: 100%;
+      height: 300px;
+    }
+
+    .edit-page {
+      display: flex;
+      flex: 1;
+      height: 100%;
+      background: rgba(10, 20, 50, 0.95);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 150, 255, 0.15);
+    }
+
+    .edit-sidebar {
+      width: 250px;
+      border-right: 1px solid rgba(0, 150, 255, 0.2);
+      padding: 20px;
+    }
+
+    .edit-main {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .edit-content {
+      flex: 1;
+      display: flex;
+      gap: 20px;
+    }
+
+    .axis-configs {
+      flex: 1;
+    }
+
+    .preview-section {
+      flex: 1;
+      border-left: 1px solid rgba(0, 150, 255, 0.2);
+      padding-left: 20px;
+    }
+
+    .preview-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #00d4ff;
+    }
+
+    .preview-content {
+      width: 100%;
+      height: 300px;
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(0, 20, 50, 0.5);
+    }
+
+    .field-list {
+      margin-top: 10px;
+    }
+
+    .field-item {
+      padding: 8px 12px;
+      background: rgba(0, 50, 100, 0.3);
+      border: 1px solid rgba(0, 150, 255, 0.2);
+      border-radius: 4px;
+      margin-bottom: 8px;
+      cursor: grab;
+      color: #8b9dc3;
+      transition: all 0.3s;
+    }
+
+    .field-item:active {
+      cursor: grabbing;
+    }
+
+    .field-item:hover {
+      background: rgba(0, 100, 200, 0.3);
+      border-color: rgba(0, 150, 255, 0.5);
+      color: #00d4ff;
+    }
+
+    .drop-area {
+      border: 2px dashed rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      padding: 15px;
+      margin: 10px 0;
+      text-align: center;
+      color: #8b9dc3;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 20, 50, 0.3);
+      transition: all 0.3s;
+    }
+
+    .drop-area.active {
+      border-color: #00d4ff;
+      background: rgba(0, 100, 200, 0.2);
+    }
+
+    .axis-config {
+      margin-bottom: 20px;
+    }
+
+    .axis-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #00d4ff;
+    }
+
+    .selected-fields {
+      margin-bottom: 10px;
+    }
+
+    .selected-field {
+      padding: 8px 12px;
+      background: rgba(0, 150, 255, 0.15);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 4px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #00d4ff;
+    }
+
+    .remove-field {
+      cursor: pointer;
+      color: #ff4d4f;
+    }
+
+    .button {
+      padding: 8px 16px;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      background: rgba(0, 50, 100, 0.3);
+      color: #00d4ff;
+      transition: all 0.3s;
+    }
+
+    .button:hover {
+      background: rgba(0, 100, 200, 0.4);
+      box-shadow: 0 0 10px rgba(0, 150, 255, 0.3);
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+      color: white;
+      border-color: #0066cc;
+    }
+
+    .button-primary:hover {
+      background: linear-gradient(135deg, #0088ff 0%, #0066cc 100%);
+      box-shadow: 0 0 15px rgba(0, 136, 255, 0.4);
+    }
+
+    .button-group {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .chart-type-selector {
+      margin-bottom: 20px;
+    }
+
+    .selector-label {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #00d4ff;
+    }
+
+    .select-box {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid rgba(0, 150, 255, 0.4);
+      border-radius: 4px;
+      background: rgba(0, 20, 50, 0.8);
+      color: #00d4ff;
+      font-size: 14px;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      margin-right: 8px;
+      accent-color: #00d4ff;
+    }
+
+    .checkbox-container label {
+      color: #8b9dc3;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: rgba(10, 20, 50, 0.95);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 0 30px rgba(0, 150, 255, 0.2);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #00d4ff;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .tech-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .tech-lines::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        linear-gradient(90deg, rgba(0, 150, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(0, 150, 255, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-orb-1 {
+      width: 400px;
+      height: 400px;
+      background: rgba(0, 150, 255, 0.4);
+      top: -100px;
+      right: -100px;
+    }
+
+    .glow-orb-2 {
+      width: 300px;
+      height: 300px;
+      background: rgba(0, 100, 200, 0.3);
+      bottom: -50px;
+      left: -50px;
+    }
+
+    .glow-orb-3 {
+      width: 200px;
+      height: 200px;
+      background: rgba(0, 200, 150, 0.2);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    // 预览图表组件
+    function PreviewChart({ xAxisFields, yAxisFields, chartType, data, isTransparent }) {
+      const chartRef = React.useRef(null);
+
+      React.useEffect(() => {
+        if (chartRef.current && xAxisFields.length > 0 && yAxisFields.length > 0 && data.length > 0) {
+          const chart = echarts.init(chartRef.current);
+
+          // 准备图表数据
+          let xAxisData = [];
+          let seriesData = [];
+
+          if (xAxisFields.length === 1) {
+            // 单个维度的情况
+            xAxisData = [...new Set(data.map(item => item[xAxisFields[0].name]))];
+            seriesData = yAxisFields.map(measure => ({
+              name: measure.name,
+              type: chartType === 'bar' ? 'bar' : 'line',
+              data: xAxisData.map(x => {
+                const item = data.find(d => d[xAxisFields[0].name] === x);
+                return item ? item[measure.name] : 0;
+              }),
+            }));
+          } else if (xAxisFields.length >= 2) {
+            // 多个维度的情况
+            const firstDim = xAxisFields[0].name;
+            const secondDim = xAxisFields[1].name;
+
+            xAxisData = [...new Set(data.map(item => item[firstDim]))];
+            const secondDimValues = [...new Set(data.map(item => item[secondDim]))];
+
+            // 为第二个维度的每个值创建一个系列
+            secondDimValues.forEach(dimValue => {
+              yAxisFields.forEach(measure => {
+                seriesData.push({
+                  name: `${dimValue} - ${measure.name}`,
+                  type: chartType === 'bar' ? 'bar' : 'line',
+                  data: xAxisData.map(x => {
+                    const item = data.find(d => d[firstDim] === x && d[secondDim] === dimValue);
+                    return item ? item[measure.name] : 0;
+                  }),
+                });
+              });
+            });
+          }
+
+          const option = {
+            backgroundColor: isTransparent ? 'transparent' : 'rgba(10, 20, 50, 0.8)',
+            title: {
+              text: '预览',
+              left: 'center',
+              textStyle: {
+                color: isTransparent ? '#fff' : '#00d4ff'
+              }
+            },
+            tooltip: {
+              trigger: 'axis',
+              backgroundColor: isTransparent ? 'rgba(0, 20, 50, 0.9)' : 'rgba(10, 20, 50, 0.9)',
+              textStyle: {
+                color: '#00d4ff'
+              },
+              borderColor: 'rgba(0, 150, 255, 0.3)'
+            },
+            legend: {
+              data: seriesData.map(s => s.name),
+              bottom: 0,
+              type: 'scroll',
+              textStyle: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              },
+              backgroundColor: 'rgba(0, 20, 50, 0.5)',
+              pageTextStyle: {
+                color: '#00d4ff'
+              }
+            },
+            xAxis: {
+              type: 'category',
+              data: xAxisData,
+              axisLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 150, 255, 0.3)'
+                }
+              },
+              axisLabel: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              }
+            },
+            yAxis: {
+              type: 'value',
+              axisLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 150, 255, 0.3)'
+                }
+              },
+              axisLabel: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              },
+              splitLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 150, 255, 0.1)'
+                }
+              }
+            },
+            series: seriesData.map((series, index) => ({
+              ...series,
+              itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: '#00d4ff' },
+                  { offset: 1, color: '#0066cc' }
+                ])
+              },
+              areaStyle: chartType === 'line' ? {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: 'rgba(0, 212, 255, 0.3)' },
+                  { offset: 1, color: 'rgba(0, 212, 255, 0.05)' }
+                ])
+              } : undefined
+            }))
+          };
+
+          chart.setOption(option);
+
+          const handleResize = () => {
+            chart.resize();
+          };
+
+          window.addEventListener('resize', handleResize);
+
+          return () => {
+            window.removeEventListener('resize', handleResize);
+            chart.dispose();
+          };
+        }
+      }, [xAxisFields, yAxisFields, chartType, data, isTransparent]);
+
+      return React.createElement('div', { className: 'preview-content' }, [
+        React.createElement('div', { ref: chartRef, style: { width: '100%', height: '100%' } })
+      ]);
+    }
+
+    // 图表组件
+    function Chart({ title, xAxisFields, yAxisFields, chartType, data, isTransparent, onEdit }) {
+      const chartRef = React.useRef(null);
+
+      React.useEffect(() => {
+        if (chartRef.current && xAxisFields.length > 0 && yAxisFields.length > 0 && data.length > 0) {
+          const chart = echarts.init(chartRef.current);
+
+          // 准备图表数据
+          let xAxisData = [];
+          let seriesData = [];
+
+          if (xAxisFields.length === 1) {
+            // 单个维度的情况
+            xAxisData = [...new Set(data.map(item => item[xAxisFields[0].name]))];
+            seriesData = yAxisFields.map(measure => ({
+              name: measure.name,
+              type: chartType === 'bar' ? 'bar' : 'line',
+              data: xAxisData.map(x => {
+                const item = data.find(d => d[xAxisFields[0].name] === x);
+                return item ? item[measure.name] : 0;
+              }),
+            }));
+          } else if (xAxisFields.length >= 2) {
+            // 多个维度的情况
+            const firstDim = xAxisFields[0].name;
+            const secondDim = xAxisFields[1].name;
+
+            xAxisData = [...new Set(data.map(item => item[firstDim]))];
+            const secondDimValues = [...new Set(data.map(item => item[secondDim]))];
+
+            // 为第二个维度的每个值创建一个系列
+            secondDimValues.forEach(dimValue => {
+              yAxisFields.forEach(measure => {
+                seriesData.push({
+                  name: `${dimValue} - ${measure.name}`,
+                  type: chartType === 'bar' ? 'bar' : 'line',
+                  data: xAxisData.map(x => {
+                    const item = data.find(d => d[firstDim] === x && d[secondDim] === dimValue);
+                    return item ? item[measure.name] : 0;
+                  }),
+                });
+              });
+            });
+          }
+
+          const option = {
+            backgroundColor: isTransparent ? 'transparent' : 'rgba(10, 20, 50, 0.8)',
+            title: {
+              text: title,
+              left: 'center',
+              textStyle: {
+                color: isTransparent ? '#fff' : '#00d4ff'
+              }
+            },
+            tooltip: {
+              trigger: 'axis',
+              backgroundColor: isTransparent ? 'rgba(0, 20, 50, 0.9)' : 'rgba(10, 20, 50, 0.9)',
+              textStyle: {
+                color: '#00d4ff'
+              },
+              borderColor: 'rgba(0, 150, 255, 0.3)'
+            },
+            legend: {
+              data: seriesData.map(s => s.name),
+              bottom: 0,
+              type: 'scroll',
+              textStyle: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              },
+              backgroundColor: 'rgba(0, 20, 50, 0.5)',
+              pageTextStyle: {
+                color: '#00d4ff'
+              }
+            },
+            xAxis: {
+              type: 'category',
+              data: xAxisData,
+              axisLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 150, 255, 0.3)'
+                }
+              },
+              axisLabel: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              }
+            },
+            yAxis: {
+              type: 'value',
+              axisLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 150, 255, 0.3)'
+                }
+              },
+              axisLabel: {
+                color: isTransparent ? '#fff' : '#8b9dc3'
+              },
+              splitLine: {
+                lineStyle: {
+                  color: isTransparent ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 150, 255, 0.1)'
+                }
+              }
+            },
+            series: seriesData.map((series, index) => ({
+              ...series,
+              itemStyle: {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: '#00d4ff' },
+                  { offset: 1, color: '#0066cc' }
+                ])
+              },
+              areaStyle: chartType === 'line' ? {
+                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: 'rgba(0, 212, 255, 0.3)' },
+                  { offset: 1, color: 'rgba(0, 212, 255, 0.05)' }
+                ])
+              } : undefined
+            }))
+          };
+
+          chart.setOption(option);
+
+          const handleResize = () => {
+            chart.resize();
+          };
+
+          window.addEventListener('resize', handleResize);
+
+          return () => {
+            window.removeEventListener('resize', handleResize);
+            chart.dispose();
+          };
+        }
+      }, [title, xAxisFields, yAxisFields, chartType, data, isTransparent]);
+
+      return React.createElement('div', {
+        className: `chart-container ${isTransparent ? 'transparent' : ''}`
+      }, [
+        React.createElement('div', { className: 'chart-header' }, [
+          React.createElement('div', { className: 'chart-title' }, title),
+          React.createElement('div', { className: 'chart-actions' }, [
+            React.createElement('button', {
+              className: 'edit-button',
+              onClick: onEdit
+            }, '编辑')
+          ])
+        ]),
+        React.createElement('div', { ref: chartRef, className: 'chart-content' })
+      ]);
+    }
+
+    // 编辑页面组件
+    function EditPage({ onSave, onCancel, initialXAxisFields, initialYAxisFields, initialChartType, initialIsTransparent, fields, data }) {
+      const [xAxisFields, setXAxisFields] = React.useState(initialXAxisFields || []);
+      const [yAxisFields, setYAxisFields] = React.useState(initialYAxisFields || []);
+      const [chartType, setChartType] = React.useState(initialChartType || 'bar');
+      const [isTransparent, setIsTransparent] = React.useState(initialIsTransparent || false);
+      const [draggingField, setDraggingField] = React.useState(null);
+
+      const handleFieldDragStart = (field) => {
+        setDraggingField(field);
+      };
+
+      const handleDrop = (axis) => {
+        if (draggingField) {
+          if (axis === 'x') {
+            // 检查是否已经存在该字段
+            if (!xAxisFields.some(f => f.id === draggingField.id)) {
+              setXAxisFields([...xAxisFields, draggingField]);
+            }
+          } else {
+            // 检查是否已经存在该字段
+            if (!yAxisFields.some(f => f.id === draggingField.id)) {
+              setYAxisFields([...yAxisFields, draggingField]);
+            }
+          }
+          setDraggingField(null);
+        }
+      };
+
+      const handleRemoveField = (axis, fieldId) => {
+        if (axis === 'x') {
+          setXAxisFields(xAxisFields.filter(f => f.id !== fieldId));
+        } else {
+          setYAxisFields(yAxisFields.filter(f => f.id !== fieldId));
+        }
+      };
+
+      const handleSave = () => {
+        onSave(xAxisFields, yAxisFields, chartType, isTransparent);
+      };
+
+      return React.createElement('div', { className: 'edit-page' }, [
+        React.createElement('div', { className: 'edit-sidebar' }, [
+          React.createElement('h3', { style: { color: '#00d4ff', marginBottom: '15px' } }, '数据源字段'),
+          React.createElement('div', { className: 'field-list' },
+            fields.map(field => (
+              React.createElement('div', {
+                key: field.id,
+                className: 'field-item',
+                draggable: true,
+                onDragStart: () => handleFieldDragStart(field)
+              }, `${field.name} (${field.type === 'dimension' ? '维度' : '度量'})`)
+            ))
+          )
+        ]),
+        React.createElement('div', { className: 'edit-main' }, [
+          React.createElement('h3', { style: { color: '#00d4ff', marginBottom: '15px' } }, '编辑图表'),
+          React.createElement('div', { className: 'edit-content' }, [
+            React.createElement('div', { className: 'axis-configs' }, [
+              React.createElement('div', { className: 'chart-type-selector' }, [
+                React.createElement('div', { className: 'selector-label' }, '图表类型'),
+                React.createElement('select', {
+                  className: 'select-box',
+                  value: chartType,
+                  onChange: (e) => setChartType(e.target.value)
+                }, [
+                  React.createElement('option', { value: 'bar' }, '柱状图'),
+                  React.createElement('option', { value: 'line' }, '折线图')
+                ])
+              ]),
+              React.createElement('div', { className: 'checkbox-container' }, [
+                React.createElement('input', {
+                  type: 'checkbox',
+                  id: 'transparent',
+                  checked: isTransparent,
+                  onChange: (e) => setIsTransparent(e.target.checked)
+                }),
+                React.createElement('label', { htmlFor: 'transparent' }, '透明背景')
+              ]),
+              React.createElement('div', { className: 'axis-config' }, [
+                React.createElement('div', { className: 'axis-title' }, '行 (维度)'),
+                xAxisFields.length > 0 && (
+                  React.createElement('div', { className: 'selected-fields' },
+                    xAxisFields.map(field => (
+                      React.createElement('div', { key: field.id, className: 'selected-field' }, [
+                        field.name,
+                        React.createElement('span', {
+                          className: 'remove-field',
+                          onClick: () => handleRemoveField('x', field.id)
+                        }, '×')
+                      ])
+                    ))
+                  )
+                ),
+                React.createElement('div', {
+                  className: 'drop-area',
+                  onDragOver: (e) => e.preventDefault(),
+                  onDrop: (e) => {
+                    e.preventDefault();
+                    handleDrop('x');
+                  }
+                }, '拖拽维度字段到此处')
+              ]),
+              React.createElement('div', { className: 'axis-config' }, [
+                React.createElement('div', { className: 'axis-title' }, '列 (度量)'),
+                yAxisFields.length > 0 && (
+                  React.createElement('div', { className: 'selected-fields' },
+                    yAxisFields.map(field => (
+                      React.createElement('div', { key: field.id, className: 'selected-field' }, [
+                        field.name,
+                        React.createElement('span', {
+                          className: 'remove-field',
+                          onClick: () => handleRemoveField('y', field.id)
+                        }, '×')
+                      ])
+                    ))
+                  )
+                ),
+                React.createElement('div', {
+                  className: 'drop-area',
+                  onDragOver: (e) => e.preventDefault(),
+                  onDrop: (e) => {
+                    e.preventDefault();
+                    handleDrop('y');
+                  }
+                }, '拖拽度量字段到此处')
+              ]),
+              React.createElement('div', { className: 'button-group' }, [
+                React.createElement('button', {
+                  className: 'button button-primary',
+                  onClick: handleSave
+                }, '保存'),
+                React.createElement('button', {
+                  className: 'button',
+                  onClick: onCancel
+                }, '取消')
+              ])
+            ]),
+            React.createElement('div', { className: 'preview-section' }, [
+              React.createElement('div', { className: 'preview-title' }, '预览'),
+              React.createElement(PreviewChart, {
+                xAxisFields: xAxisFields,
+                yAxisFields: yAxisFields,
+                chartType: chartType,
+                data: data,
+                isTransparent: isTransparent
+              })
+            ])
+          ])
+        ])
+      ]);
+    }
+
+    // 数据源上传组件
+    function DataUpload({ onDataLoaded }) {
+      const [file, setFile] = React.useState(null);
+      const [fields, setFields] = React.useState([]);
+      const [data, setData] = React.useState([]);
+
+      const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile) {
+          setFile(selectedFile);
+          parseFile(selectedFile);
+        }
+      };
+
+      const parseFile = (file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+            if (jsonData.length > 0) {
+              const columns = Object.keys(jsonData[0]);
+              const detectedFields = columns.map((column, index) => {
+                // 简单的类型检测：检查前10个值
+                const values = jsonData.slice(0, 10).map(item => item[column]);
+                const isMeasure = values.every(val => !isNaN(val) && val !== null && val !== '');
+                return {
+                  id: index.toString(),
+                  name: column,
+                  type: isMeasure ? 'measure' : 'dimension'
+                };
+              });
+              setFields(detectedFields);
+              setData(jsonData);
+            }
+          } catch (error) {
+            console.error('Error parsing file:', error);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
+      const handleNext = () => {
+        if (fields.length > 0 && data.length > 0) {
+          onDataLoaded(fields, data);
+        }
+      };
+
+      return React.createElement('div', { className: 'upload-section' }, [
+        React.createElement('h2', { className: 'upload-title' }, '上传数据源'),
+        React.createElement('p', { className: 'upload-description' }, '请上传Excel或CSV格式的文件，系统将自动识别字段并判断维度/度量类型'),
+        React.createElement('div', { className: 'file-upload' }, [
+          React.createElement('input', {
+            type: 'file',
+            id: 'file-input',
+            className: 'file-input',
+            accept: '.xlsx,.xls,.csv',
+            onChange: handleFileChange
+          }),
+          React.createElement('label', { htmlFor: 'file-input', className: 'upload-button' }, '选择文件'),
+          file && React.createElement('div', { className: 'file-info' }, [
+            React.createElement('div', { className: 'file-name' }, `文件名: ${file.name}`),
+            React.createElement('div', null, `大小: ${(file.size / 1024).toFixed(2)} KB`)
+          ])
+        ]),
+        fields.length > 0 && React.createElement('div', { className: 'fields-preview' }, [
+          React.createElement('h3', { className: 'fields-title' }, '识别的字段'),
+          React.createElement('table', { className: 'field-table' }, [
+            React.createElement('thead', null, [
+              React.createElement('tr', null, [
+                React.createElement('th', null, '字段名称'),
+                React.createElement('th', null, '类型')
+              ])
+            ]),
+            React.createElement('tbody', null,
+              fields.map(field => (
+                React.createElement('tr', { key: field.id }, [
+                  React.createElement('td', null, field.name),
+                  React.createElement('td', null, [
+                    React.createElement('span', {
+                      className: `type-tag ${field.type === 'dimension' ? 'type-dimension' : 'type-measure'}`
+                    }, field.type === 'dimension' ? '维度' : '度量')
+                  ])
+                ])
+              ))
+            )
+          ]),
+          React.createElement('button', {
+            className: 'next-button',
+            onClick: handleNext
+          }, '下一步')
+        ])
+      ]);
+    }
+
+    // 背景图上传模态框
+    function BackgroundUploadModal({ isOpen, onClose, onBackgroundChange }) {
+      if (!isOpen) return null;
+
+      const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            onBackgroundChange(event.target.result);
+            onClose();
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '上传背景图片'),
+          React.createElement('div', { className: 'file-upload' }, [
+            React.createElement('input', {
+              type: 'file',
+              id: 'bg-file-input',
+              className: 'file-input',
+              accept: 'image/*',
+              onChange: handleFileChange
+            }),
+            React.createElement('label', { htmlFor: 'bg-file-input', className: 'upload-button' }, '选择图片')
+          ]),
+          React.createElement('div', { className: 'modal-actions' }, [
+            React.createElement('button', {
+              className: 'button',
+              onClick: onClose
+            }, '取消'),
+            React.createElement('button', {
+              className: 'button button-primary',
+              onClick: onClose
+            }, '完成')
+          ])
+        ])
+      ]);
+    }
+
+    // 主应用组件
+    function App() {
+      const [activeTab, setActiveTab] = React.useState('upload'); // 'upload' or 'dashboard'
+      const [fields, setFields] = React.useState([]);
+      const [data, setData] = React.useState([]);
+      const [showEdit, setShowEdit] = React.useState(false);
+      const [xAxisFields, setXAxisFields] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_xAxisFields');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [yAxisFields, setYAxisFields] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_yAxisFields');
+        return saved ? JSON.parse(saved) : [];
+      });
+      const [chartType, setChartType] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_chartType');
+        return saved || 'bar';
+      });
+      const [isTransparent, setIsTransparent] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_isTransparent');
+        return saved !== null ? JSON.parse(saved) : true;
+      });
+      const [showBackgroundModal, setShowBackgroundModal] = React.useState(false);
+      const [backgroundImage, setBackgroundImage] = React.useState(() => {
+        const saved = localStorage.getItem('dashboard_backgroundImage');
+        return saved || null;
+      });
+
+      // 页面加载时从localStorage读取数据
+      React.useEffect(() => {
+        const savedFields = localStorage.getItem('dashboard_fields');
+        const savedData = localStorage.getItem('dashboard_data');
+        if (savedFields && savedData) {
+          setFields(JSON.parse(savedFields));
+          setData(JSON.parse(savedData));
+          setActiveTab('dashboard');
+        }
+      }, []);
+
+      const handleDataLoaded = (loadedFields, loadedData) => {
+        setFields(loadedFields);
+        setData(loadedData);
+        localStorage.setItem('dashboard_fields', JSON.stringify(loadedFields));
+        localStorage.setItem('dashboard_data', JSON.stringify(loadedData));
+        setActiveTab('dashboard');
+      };
+
+      const handleEdit = () => {
+        setShowEdit(true);
+      };
+
+      const handleSave = (xAxis, yAxis, type, transparent) => {
+        setXAxisFields(xAxis);
+        setYAxisFields(yAxis);
+        setChartType(type);
+        setIsTransparent(transparent);
+        localStorage.setItem('dashboard_xAxisFields', JSON.stringify(xAxis));
+        localStorage.setItem('dashboard_yAxisFields', JSON.stringify(yAxis));
+        localStorage.setItem('dashboard_chartType', type);
+        localStorage.setItem('dashboard_isTransparent', JSON.stringify(transparent));
+        setShowEdit(false);
+      };
+
+      const handleCancel = () => {
+        setShowEdit(false);
+      };
+
+      const handleBackgroundChange = (imageUrl) => {
+        setBackgroundImage(imageUrl);
+        localStorage.setItem('dashboard_backgroundImage', imageUrl);
+      };
+
+      return React.createElement('div', { className: 'dashboard-container' }, [
+        React.createElement('div', { className: 'glow-orb glow-orb-1' }),
+        React.createElement('div', { className: 'glow-orb glow-orb-2' }),
+        React.createElement('div', { className: 'glow-orb glow-orb-3' }),
+        React.createElement('div', { className: 'tech-lines' }),
+        backgroundImage && React.createElement('div', {
+          style: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.4,
+            zIndex: 0
+          }
+        }),
+        React.createElement('div', { className: 'dashboard-header' }, [
+          '数据可视化仪表板',
+          React.createElement('div', { className: 'header-actions' }, [
+            React.createElement('button', {
+              className: 'header-button',
+              onClick: () => setShowBackgroundModal(true)
+            }, '更换背景'),
+            React.createElement('button', {
+              className: 'header-button',
+              onClick: () => setActiveTab('upload')
+            }, '上传数据')
+          ])
+        ]),
+        React.createElement('div', { className: 'nav-tabs' }, [
+          React.createElement('div', {
+            className: `nav-tab ${activeTab === 'upload' ? 'active' : ''}`,
+            onClick: () => setActiveTab('upload')
+          }, '数据源上传'),
+          React.createElement('div', {
+            className: `nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`,
+            onClick: () => setActiveTab('dashboard'),
+            style: { pointerEvents: fields.length === 0 ? 'none' : 'auto', opacity: fields.length === 0 ? 0.6 : 1 }
+          }, '仪表板')
+        ]),
+        React.createElement('div', { className: 'dashboard-content' },
+          activeTab === 'upload' ? (
+            React.createElement(DataUpload, { onDataLoaded: handleDataLoaded })
+          ) : showEdit ? (
+            React.createElement(EditPage, {
+              onSave: handleSave,
+              onCancel: handleCancel,
+              initialXAxisFields: xAxisFields,
+              initialYAxisFields: yAxisFields,
+              initialChartType: chartType,
+              initialIsTransparent: isTransparent,
+              fields: fields,
+              data: data
+            })
+          ) : (
+            React.createElement(Chart, {
+              title: '数据可视化',
+              xAxisFields: xAxisFields,
+              yAxisFields: yAxisFields,
+              chartType: chartType,
+              data: data,
+              isTransparent: isTransparent,
+              onEdit: handleEdit
+            })
+          )
+        ),
+        React.createElement(BackgroundUploadModal, {
+          isOpen: showBackgroundModal,
+          onClose: () => setShowBackgroundModal(false),
+          onBackgroundChange: handleBackgroundChange
+        })
+      ]);
+    }
+
+    // 渲染应用
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      React.createElement(React.StrictMode, null, React.createElement(App))
+    );
+  </script>
+</body>
+</html>
