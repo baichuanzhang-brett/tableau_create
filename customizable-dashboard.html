@@ -287,6 +287,66 @@
       gap: 5px;
     }
 
+    .more-options {
+      position: relative;
+    }
+
+    .more-button {
+      background: transparent;
+      color: #00d4ff;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.3s;
+      padding: 4px;
+      border-radius: 4px;
+    }
+
+    .chart-container:hover .more-button {
+      opacity: 1;
+    }
+
+    .more-button:hover {
+      background: rgba(0, 100, 200, 0.3);
+    }
+
+    .options-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: rgba(10, 20, 50, 0.95);
+      border: 1px solid rgba(0, 150, 255, 0.3);
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+      padding: 8px 0;
+      margin-top: 5px;
+      min-width: 120px;
+      z-index: 1000;
+    }
+
+    .option-item {
+      padding: 8px 16px;
+      color: #8b9dc3;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 14px;
+    }
+
+    .option-item:hover {
+      background: rgba(0, 100, 200, 0.3);
+      color: #00d4ff;
+    }
+
+    .option-item.delete {
+      color: #ff4d4f;
+    }
+
+    .option-item.delete:hover {
+      background: rgba(255, 77, 79, 0.2);
+      color: #ff4d4f;
+    }
+
     .edit-button {
       background: rgba(0, 100, 200, 0.3);
       color: #00d4ff;
@@ -836,10 +896,11 @@
     }
 
     // 图表组件
-    function Chart({ title, xAxisFields, yAxisFields, chartType, data, isTransparent, onEdit, onResize }) {
+    function Chart({ title, xAxisFields, yAxisFields, chartType, data, isTransparent, onEdit, onRename, onDelete }) {
       const chartRef = React.useRef(null);
       const containerRef = React.useRef(null);
       const [dimensions, setDimensions] = React.useState({ width: 600, height: 400 });
+      const [showOptions, setShowOptions] = React.useState(false);
 
       React.useEffect(() => {
         // 从localStorage加载图表尺寸
@@ -1014,10 +1075,38 @@
         React.createElement('div', { className: 'chart-header' }, [
           React.createElement('div', { className: 'chart-title' }, title),
           React.createElement('div', { className: 'chart-actions' }, [
-            React.createElement('button', {
-              className: 'edit-button',
-              onClick: onEdit
-            }, '编辑')
+            React.createElement('div', { className: 'more-options' }, [
+              React.createElement('button', {
+                className: 'more-button',
+                onClick: (e) => {
+                  e.stopPropagation();
+                  setShowOptions(!showOptions);
+                }
+              }, '•••'),
+              showOptions && React.createElement('div', { className: 'options-dropdown' }, [
+                React.createElement('div', {
+                  className: 'option-item',
+                  onClick: () => {
+                    onEdit();
+                    setShowOptions(false);
+                  }
+                }, '编辑'),
+                React.createElement('div', {
+                  className: 'option-item',
+                  onClick: () => {
+                    onRename();
+                    setShowOptions(false);
+                  }
+                }, '重命名'),
+                React.createElement('div', {
+                  className: 'option-item delete',
+                  onClick: () => {
+                    onDelete();
+                    setShowOptions(false);
+                  }
+                }, '删除')
+              ])
+            ])
           ])
         ]),
         React.createElement('div', { 
@@ -1585,6 +1674,69 @@
       ]);
     }
 
+    // 删除确认弹窗
+    function DeleteConfirmModal({ isOpen, onClose, onConfirm }) {
+      if (!isOpen) return null;
+
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '确认删除'),
+          React.createElement('p', { style: { color: '#8b9dc3', textAlign: 'center', marginBottom: '30px' } }, '确定要删除这个图表吗？此操作不可撤销。'),
+          React.createElement('div', { className: 'modal-actions' }, [
+            React.createElement('button', {
+              className: 'button',
+              onClick: onClose
+            }, '取消'),
+            React.createElement('button', {
+              className: 'button',
+              style: { backgroundColor: '#ff4d4f', borderColor: '#ff4d4f', color: 'white' },
+              onClick: onConfirm
+            }, '确认删除')
+          ])
+        ])
+      ]);
+    }
+
+    // 重命名弹窗
+    function RenameModal({ isOpen, onClose, onConfirm, currentName }) {
+      if (!isOpen) return null;
+
+      const [newName, setNewName] = React.useState(currentName || '');
+
+      const handleConfirm = () => {
+        if (newName && newName.trim()) {
+          onConfirm(newName.trim());
+        }
+      };
+
+      return React.createElement('div', { className: 'modal' }, [
+        React.createElement('div', { className: 'modal-content' }, [
+          React.createElement('h3', { className: 'modal-title' }, '重命名图表'),
+          React.createElement('div', { className: 'form-group' }, [
+            React.createElement('label', { className: 'form-label' }, '图表名称'),
+            React.createElement('input', {
+              type: 'text',
+              className: 'form-input',
+              value: newName,
+              onChange: (e) => setNewName(e.target.value),
+              placeholder: '输入新的图表名称',
+              autoFocus: true
+            })
+          ]),
+          React.createElement('div', { className: 'modal-actions' }, [
+            React.createElement('button', {
+              className: 'button',
+              onClick: onClose
+            }, '取消'),
+            React.createElement('button', {
+              className: 'button button-primary',
+              onClick: handleConfirm
+            }, '确认')
+          ])
+        ])
+      ]);
+    }
+
     // 数据集选择模态框
     function DatasetModal({ isOpen, onClose, datasets, onSelectDataset }) {
       if (!isOpen) return null;
@@ -1688,6 +1840,46 @@
       });
       const [showAddDatasetModal, setShowAddDatasetModal] = React.useState(false);
       const [currentDataset, setCurrentDataset] = React.useState(null);
+      const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+      const [chartToDelete, setChartToDelete] = React.useState(null);
+      const [showRenameModal, setShowRenameModal] = React.useState(false);
+      const [chartToRename, setChartToRename] = React.useState(null);
+
+      // 解析URL哈希，初始化页面状态
+      React.useEffect(() => {
+        const handleHashChange = () => {
+          const hash = window.location.hash;
+          if (hash === '#/datasets') {
+            setActiveTab('upload');
+            setShowEdit(false);
+          } else if (hash === '#/dashboard') {
+            setActiveTab('dashboard');
+            setShowEdit(false);
+          } else if (hash.startsWith('#/edit/')) {
+            const chartId = hash.split('/')[2];
+            const chart = charts.find(c => c.id === chartId);
+            if (chart) {
+              handleEdit(chart);
+            } else {
+              // 如果找不到图表，重定向到仪表板
+              window.location.hash = '#/dashboard';
+            }
+          } else {
+            // 默认显示仪表板
+            window.location.hash = '#/dashboard';
+          }
+        };
+
+        // 初始加载时处理哈希
+        handleHashChange();
+
+        // 监听哈希变化
+        window.addEventListener('hashchange', handleHashChange);
+
+        return () => {
+          window.removeEventListener('hashchange', handleHashChange);
+        };
+      }, [charts]);
 
       // 页面加载时从localStorage读取数据
       React.useEffect(() => {
@@ -1844,8 +2036,21 @@
       };
 
       const handleEdit = (chart = null) => {
+        if (chart && chart.datasetId) {
+          // 找到图表对应的数据源
+          const chartDataset = datasets.find(d => d.id === chart.datasetId);
+          if (chartDataset) {
+            setCurrentDataset(chartDataset);
+            setFields(chartDataset.fields);
+            setData(chartDataset.data);
+          }
+        }
         setEditingChart(chart);
         setShowEdit(true);
+        // 更新URL哈希
+        if (chart) {
+          window.location.hash = `#/edit/${chart.id}`;
+        }
       };
 
       const handleSave = (xAxis, yAxis, type, transparent, title) => {
@@ -1875,7 +2080,8 @@
             yAxisFields: yAxis,
             chartType: type,
             isTransparent: transparent,
-            chartTitle: title
+            chartTitle: title,
+            datasetId: currentDataset ? currentDataset.id : null
           };
           const updatedCharts = [...charts, newChart];
           setCharts(updatedCharts);
@@ -1883,11 +2089,15 @@
         }
         setShowEdit(false);
         setEditingChart(null);
+        // 更新URL哈希，回到仪表板
+        window.location.hash = '#/dashboard';
       };
 
       const handleCancel = () => {
         setShowEdit(false);
         setEditingChart(null);
+        // 更新URL哈希，回到仪表板
+        window.location.hash = '#/dashboard';
       };
 
       const handleBackgroundChange = (imageUrl) => {
@@ -1920,6 +2130,48 @@
         setEditingChart(null);
         setShowDatasetModal(false);
         setShowEdit(true);
+      };
+
+      const handleDeleteChart = (chart) => {
+        setChartToDelete(chart);
+        setShowDeleteModal(true);
+      };
+
+      const confirmDeleteChart = () => {
+        if (chartToDelete) {
+          const updatedCharts = charts.filter(c => c.id !== chartToDelete.id);
+          setCharts(updatedCharts);
+          localStorage.setItem('dashboard_charts', JSON.stringify(updatedCharts));
+          setShowDeleteModal(false);
+          setChartToDelete(null);
+        }
+      };
+
+      const cancelDeleteChart = () => {
+        setShowDeleteModal(false);
+        setChartToDelete(null);
+      };
+
+      const handleRenameChart = (chart) => {
+        setChartToRename(chart);
+        setShowRenameModal(true);
+      };
+
+      const confirmRenameChart = (newName) => {
+        if (chartToRename && newName) {
+          const updatedCharts = charts.map(c => 
+            c.id === chartToRename.id ? { ...c, chartTitle: newName } : c
+          );
+          setCharts(updatedCharts);
+          localStorage.setItem('dashboard_charts', JSON.stringify(updatedCharts));
+          setShowRenameModal(false);
+          setChartToRename(null);
+        }
+      };
+
+      const cancelRenameChart = () => {
+        setShowRenameModal(false);
+        setChartToRename(null);
       };
 
       return React.createElement('div', { className: 'dashboard-container' }, [
@@ -1965,12 +2217,12 @@
           React.createElement('div', {
             key: 'upload-tab',
             className: `nav-tab ${activeTab === 'upload' ? 'active' : ''}`,
-            onClick: () => setActiveTab('upload')
+            onClick: () => window.location.hash = '#/datasets'
           }, '数据集'),
           React.createElement('div', {
             key: 'dashboard-tab',
             className: `nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`,
-            onClick: () => setActiveTab('dashboard'),
+            onClick: () => window.location.hash = '#/dashboard',
             style: { pointerEvents: fields.length === 0 ? 'none' : 'auto', opacity: fields.length === 0 ? 0.6 : 1 }
           }, '仪表板')
         ]),
@@ -2050,17 +2302,25 @@
             })
           ) : (
             React.createElement('div', { key: 'charts-container', style: { display: 'flex', flexWrap: 'wrap', gap: '20px' } }, [
-              ...charts.map(chart => React.createElement(Chart, {
-                key: chart.id,
-                title: chart.chartTitle,
-                xAxisFields: chart.xAxisFields,
-                yAxisFields: chart.yAxisFields,
-                chartType: chart.chartType,
-                data: data,
-                isTransparent: chart.isTransparent,
-                onEdit: () => handleEdit(chart),
-                onResize: handleResize
-              })),
+              ...charts.map(chart => {
+                // 找到图表对应的数据源
+                const chartDataset = chart.datasetId ? datasets.find(d => d.id === chart.datasetId) : null;
+                // 使用图表对应的数据源数据，如果没有则使用当前全局数据
+                const chartData = chartDataset ? chartDataset.data : data;
+                
+                return React.createElement(Chart, {
+                  key: chart.id,
+                  title: chart.chartTitle,
+                  xAxisFields: chart.xAxisFields,
+                  yAxisFields: chart.yAxisFields,
+                  chartType: chart.chartType,
+                  data: chartData,
+                  isTransparent: chart.isTransparent,
+                  onEdit: () => handleEdit(chart),
+                  onRename: () => handleRenameChart(chart),
+                  onDelete: () => handleDeleteChart(chart)
+                });
+              }),
               charts.length === 0 && React.createElement('div', {
                 key: 'empty-state',
                 style: {
@@ -2091,6 +2351,17 @@
           isOpen: showAddDatasetModal,
           onClose: () => setShowAddDatasetModal(false),
           onDataLoaded: handleDataLoaded
+        }),
+        React.createElement(DeleteConfirmModal, {
+          isOpen: showDeleteModal,
+          onClose: cancelDeleteChart,
+          onConfirm: confirmDeleteChart
+        }),
+        React.createElement(RenameModal, {
+          isOpen: showRenameModal,
+          onClose: cancelRenameChart,
+          onConfirm: confirmRenameChart,
+          currentName: chartToRename ? chartToRename.chartTitle : ''
         })
       ]);
     }
